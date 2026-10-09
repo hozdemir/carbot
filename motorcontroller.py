@@ -105,6 +105,31 @@ class MotorController:
 
         return int(leftDC), int(rightDC)
 
+    def drive(self, forward, turn, minPower=0.0):
+        """Continuous drive used by follow mode. forward and turn are fractions (-1..1) of MAX_SPEED: forward > 0
+        drives forward, turn > 0 turns clockwise. A moving wheel gets at least minPower (a fraction of MAX_SPEED) so
+        small corrections still overcome friction."""
+        leftWheel = max(-1.0, min(1.0, forward + turn))
+        rightWheel = max(-1.0, min(1.0, forward - turn))
+
+        if leftWheel == 0 and rightWheel == 0:
+            self.stopMotors()
+            self.audioManager.restoreVolume(self.audioToken)
+            Events.getInstance().fireMotionOff()
+            return
+
+        # Negative power drives forward on this chassis, the same as the "n" bearing.
+        self.setMotorSpeed(self.leftMotor, -self._wheelPower(leftWheel, minPower), self.leftTrim)
+        self.setMotorSpeed(self.rightMotor, -self._wheelPower(rightWheel, minPower), self.rightTrim)
+        self.audioManager.lowerVolume(self.audioToken)
+        Events.getInstance().fireMotionOn()
+
+    def _wheelPower(self, fraction, minPower):
+        if fraction == 0:
+            return 0.0
+        magnitude = minPower + (1.0 - minPower) * abs(fraction)
+        return magnitude * self.MAX_SPEED * (1 if fraction > 0 else -1)
+
     def setBearing(self, bearing, slow):
         if bearing not in self.validBearings:
             raise ValueError("Invalid bearing: {}".format(bearing))

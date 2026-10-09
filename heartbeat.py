@@ -112,6 +112,10 @@ class Heartbeat:
             self.resetHeartbeatData()
             return self.lastHeartbeatData
 
+    def isAlive(self):
+        """Whether a browser has sent a heartbeat recently enough for the rover to keep moving."""
+        return (time.time() - self.lastHeartbeat) <= self.heartbeatInterval
+
     def onHeartbeatReceived(self):
         self.lastHeartbeat = time.time()
         return self.lastHeartbeatData

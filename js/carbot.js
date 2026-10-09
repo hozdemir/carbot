@@ -137,6 +137,14 @@ $(document).ready(function () {
                 toggleLights();
             }
 
+            if (event.keyCode == 70) {
+                if (!event.repeat) {
+                    toggleFollow();
+                }
+                event.preventDefault();
+                return;
+            }
+
             if (event.keyCode == 38) {
                 up = true;
                 event.preventDefault();
@@ -315,6 +323,14 @@ $(document).ready(function () {
         toggleLights();
     });
 
+    $("#followButton").click(function (event) {
+        toggleFollow();
+    });
+
+    $(window).resize(function () {
+        drawFollowTarget(lastFollowStatus);
+    });
+
     const sendLightsColor_throttled = _.throttle(sendLightsColor, 200, {leading: true});
     const sendLightsBrightness_throttled = _.throttle(sendLightsBrightness, 200, {leading: true});
 
@@ -343,6 +359,8 @@ $(document).ready(function () {
     });
 
     doHeartbeat();
+
+    pollFollow();
 
     doConnect();
 });
@@ -419,6 +437,123 @@ function syncLights() {
         $("div#lightsButton > i").text("flash_off");
     }
 }
+
+var lastFollowStatus = null;
+var followStoppedMessageUntil = 0;
+
+function toggleFollow() {
+    if (lastFollowStatus && lastFollowStatus.available === false) {
+        showFollowMessage("Follow mode needs CameraSource=picamera2 in rover.conf", 4000);
+        return;
+    }
+    var enabled = !(lastFollowStatus && lastFollowStatus.enabled);
+    $.ajax({
+        url: '/follow',
+        type: "POST",
+        data: JSON.stringify({ enabled: enabled }),
+        contentType: "application/json; charset=utf-8",
+        dataType: "json"
+    }).done(function (status) {
+        renderFollow(status);
+    }).fail(function (xhr) {
+        if (xhr.responseJSON) {
+            renderFollow(xhr.responseJSON);
+        }
+    });
+}
+
+function pollFollow() {
+    $.ajax({
+        url: '/follow',
+        type: "GET",
+        dataType: "json"
+    }).done(function (status) {
+        renderFollow(status);
+    }).always(function () {
+        // Poll fast while following so the target marker keeps up, slowly otherwise to notice server-side stops.
+        var following = lastFollowStatus && lastFollowStatus.enabled;
+        setTimeout(pollFollow, following ? 200 : 2000);
+    });
+}
+
+function renderFollow(status) {
+    var wasEnabled = lastFollowStatus && lastFollowStatus.enabled;
+    lastFollowStatus = status;
+
+    $("#followButton").toggleClass("active", !!status.enabled);
+    $("#followButton").toggleClass("unavailable", status.available === false);
+
+    if (status.enabled) {
+        var text = "Following: " + status.state;
+        if (status.target) {
+            // TargetSize in rover.conf is this value at the distance the rover should hold.
+            text += " (size " + status.target.radius.toFixed(2) + ")";
+        }
+        $("#followStatus").text(text).show();
+    } else if (wasEnabled && status.stopReason && status.stopReason !== "turned off") {
+        showFollowMessage("Follow stopped: " + status.stopReason, 4000);
+    } else if (Date.now() > followStoppedMessageUntil) {
+        $("#followStatus").hide();
+    }
+
+    drawFollowTarget(status);
+}
+
+function showFollowMessage(message, durationMs) {
+    followStoppedMessageUntil = Date.now() + durationMs;
+    $("#followStatus").text(message).show();
+    setTimeout(function () {
+        if (Date.now() >= followStoppedMessageUntil && !(lastFollowStatus && lastFollowStatus.enabled)) {
+            $("#followStatus").hide();
+        }
+    }, durationMs);
+}
+
+// The video keeps its aspect ratio inside the element (object-fit: contain), so find the area the picture fills.
+function videoContentRect() {
+    var video = $("#vid")[0];
+    var rect = video.getBoundingClientRect();
+    if (!video.videoWidth || !video.videoHeight) {
+        return rect;
+    }
+    var scale = Math.min(rect.width / video.videoWidth, rect.height / video.videoHeight);
+    var width = video.videoWidth * scale;
+    var height = video.videoHeight * scale;
+    return {
+        left: rect.left + (rect.width - width) / 2,
+        top: rect.top + (rect.height - height) / 2,
+        width: width,
+        height: height
+    };
+}
+
+function drawFollowTarget(status) {
+    var canvas = $("#followOverlay")[0];
+    if (!status || !status.enabled || !status.target) {
+        $(canvas).hide();
+        return;
+    }
+
+    var area = videoContentRect();
+    $(canvas).css({ left: area.left + "px", top: area.top + "px", width: area.width + "px", height: area.height + "px" }).show();
+    canvas.width = Math.round(area.width);
+    canvas.height = Math.round(area.height);
+
+    var context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.lineWidth = 3;
+    context.strokeStyle = status.state === "tracking" ? "#4caf50" : "#ffc107";
+    context.beginPath();
+    context.arc(
+        status.target.x * canvas.width,
+        status.target.y * canvas.height,
+        Math.max(4, status.target.radius * canvas.height),
+        0,
+        2 * Math.PI
+    );
+    context.stroke();
+}
+
 // Picking a colour turns the lights on, so the choice is visible straight away.
 function sendLightsColor(color) {
     lights = true;
