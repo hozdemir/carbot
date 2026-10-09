@@ -89,11 +89,10 @@
         "systemctl enable pigpiod",
         "sed -i 's:^ExecStart=/usr/bin/pigpiod -l:ExecStart=/usr/bin/pigpiod -l -t 0:g' /lib/systemd/system/pigpiod.service",
         "pip3 install aiohttp apa102-pi psutil pyalsaaudio smbus",
-        "# Clone and set up Carbot FIXME branch",
+        "# Clone and set up Carbot, generate a TLS keypair for the local HTTPS server",
         "cd /home/pi",
-        "git clone https://github.com/nikivanov/carbot.git",
-        "cp /home/pi/carbot/key.pem /home/pi",
-        "cp /home/pi/carbot/cert.pem /home/pi",
+        "git clone https://github.com/hozdemir/carbot.git",
+        "openssl req -x509 -newkey rsa:2048 -keyout /home/pi/key.pem -out /home/pi/cert.pem -days 3650 -nodes -subj '/CN=carbot.local'",
         "chown -R pi /home/pi/carbot",
         "systemctl enable carbot"
       ]
