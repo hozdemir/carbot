@@ -34,6 +34,7 @@ audioManagerThread = None
 janusEventHandler = None
 offCharger = None
 
+
 @routes.get("/")
 async def getPageHTML(request):
     return web.FileResponse("index.html")
@@ -69,6 +70,7 @@ async def setCommand(request):
 async def shutDown(request):
     call("sudo halt", shell=True)
 
+
 @routes.post("/restart")
 async def restart(request):
     call("sudo reboot", shell=True)
@@ -95,6 +97,7 @@ async def onHeartbeat(request):
     stats = heartbeat.onHeartbeatReceived()
     return web.json_response(stats)
 
+
 @routes.post("/lights")
 async def onLights(request):
     lightsObj = await request.json()
@@ -105,6 +108,7 @@ async def onLights(request):
         lightsController.lightsOff()
     return web.Response(text="OK")
 
+
 async def onJanusEvent(request):
     try:
         eventObj = await request.json()
@@ -113,6 +117,7 @@ async def onJanusEvent(request):
         print('Error handling janus event: {}'.format(e))
     finally:
         return web.Response(text="OK")
+
 
 # Python 3.7 is overly wordy about self-signed certificates, so we'll suppress the error here
 def loopExceptionHandler(loop, context):
@@ -140,7 +145,10 @@ def createSSLContext(homePath):
     sslctx.verify_mode = ssl.CERT_NONE
     return sslctx
 
+
 runners = []
+
+
 async def start_site(app, address, port, sslContext=None):
     runner = web.AppRunner(app)
     runners.append(runner)
@@ -150,6 +158,9 @@ async def start_site(app, address, port, sslContext=None):
         site = web.TCPSite(runner, host=address, port=port, ssl_context=sslContext)
     else:
         site = web.TCPSite(runner, host=address, port=port)
+
+    #site = web.TCPSite(runner, host=address, port=port)
+
     await site.start()
 
 
@@ -157,11 +168,11 @@ if __name__ == "__main__":
     homePath = os.path.dirname(os.path.abspath(__file__))
     sslctx = createSSLContext(os.path.dirname(homePath))
 
-    gpio = pigpio.pi()
-    if not gpio.connected:
-        print('GPIO not connected')
-        exit()
-    
+    #gpio = pigpio.pi()
+    #if not gpio.connected:
+    #    print('GPIO not connected')
+    #    exit()
+
     config = ConfigParser()
     config.read(os.path.join(homePath, "rover.conf"))
     audioConfig = config["AUDIO"]
@@ -172,16 +183,16 @@ if __name__ == "__main__":
 
     audioManager = AudioManager(config)
 
-    motorController = MotorController(config, gpio, audioManager)
+    motorController = MotorController(config, audioManager)
 
-    alsa = Alsa(gpio, config)
+    alsa = Alsa(config)
 
-    servoController = ServoController(gpio, config, audioManager)
-    lightsController = LightsController(gpio, config)
+    servoController = ServoController(config, audioManager)
+    lightsController = LightsController(config)
 
     tts = TTSSpeaker(config, alsa, audioManager)
 
-    powerPlant = PowerPlant(config)
+    powerPlant = PowerPlant()
 
     startupController = StartupSequenceController(config, servoController, lightsController, tts)
 
@@ -190,14 +201,14 @@ if __name__ == "__main__":
     offCharger = OffCharger(config, tts, motorController)
 
     janus = ExternalProcess(videoConfig["JanusStartCommand"], False, False, "janus.log")
-    videoStream = ExternalProcess(videoConfig["GStreamerStartCommand"], True, False, "video.log")
+    videoStream = ExternalProcess(videoConfig["GStreamerStartCommand"], False, False, "video.log")
 
     janusEventHandler = JanusEventHandler()
 
     mainApp = web.Application()
     mainApp.add_routes(routes)
     mainApp.router.add_static('/js/', path=os.path.join(homePath, 'js'))
-    loop.create_task(start_site(mainApp, '0.0.0.0', 5000, sslctx))
+    loop.create_task(start_site(mainApp, '0.0.0.0', 5000, None))
 
     eventListenerApp = web.Application()
     eventListenerApp.add_routes([web.post('/janusEvent', onJanusEvent)])
@@ -210,11 +221,8 @@ if __name__ == "__main__":
     finally:
         servoController.stop()
         lightsController.stop()
-        gpio.stop()
+        #gpio.stop()
         janus.endProcess()
         videoStream.endProcess()
         for runner in runners:
             loop.run_until_complete(runner.cleanup())
-
-    
-

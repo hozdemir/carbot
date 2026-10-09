@@ -1,117 +1,105 @@
 from events import Events
-from motor import Motor
-import pigpio
-
+from fusion_hat.pwm import PWM
+from fusion_hat.pin import Pin
+from fusion_hat.motor import Motor
+import time
 
 class MotorController:
     validBearings = ["n", "ne", "e", "se", "s", "sw", "w", "nw", "0"]
 
-    def __init__(self, config, gpio, audioManager):
+    def __init__(self, config, audioManager):
         driverConfig = config["DRIVER"]
-        leftMotorConfig = config["LEFTMOTOR"]
-        rightMotorConfig = config["RIGHTMOTOR"]
-        
         self.trim = float(driverConfig["Trim"])
-        self.pwmFrequency = int(driverConfig["PWMFrequency"])
 
-        leftMotor = Motor(
-            gpio,
-            self.pwmFrequency,
-            int(leftMotorConfig["ForwardPin"]),
-            int(leftMotorConfig["ReversePin"]),
-            1 if self.trim >= 0 else 1 + self.trim,
-            'Left Motor'
-        )
+        self.leftMotor = Motor('M1', is_reversed=True)  # Sol motor
+        self.rightMotor = Motor('M2')  # Sağ motor
 
-        rightMotor = Motor(
-            gpio,
-            self.pwmFrequency,
-            int(rightMotorConfig["ForwardPin"]),
-            int(rightMotorConfig["ReversePin"]),
-            1 if self.trim <= 0 else 1 - self.trim,
-            'Right Motor'
-        )
+        self.leftTrim = 1 if self.trim >= 0 else 1 + self.trim
+        self.rightTrim = 1 if self.trim <= 0 else 1 - self.trim
 
-        self.leftMotor = leftMotor
-        self.rightMotor = rightMotor
-
-        self.gpio = gpio
-
+        # Hız oranları
         self.straightaway = float(driverConfig["Straightaway"])
         self.straightawaySlow = float(driverConfig["StraightawaySlow"])
         self.halfTurnUndersteer = float(driverConfig["HalfTurnUndersteer"])
         self.halfTurnSlowFactor = float(driverConfig["HalfTurnSlowFactor"])
         self.tankTurnSpeed = float(driverConfig["TankTurnSpeed"])
         self.tankTurnSpeedSlow = float(driverConfig["TankTurnSpeedSlow"])
-        
-        self.enablePin = int(driverConfig["EnablePin"])
-
-        self.gpio.set_mode(self.enablePin, pigpio.OUTPUT)
-        self.gpio.write(self.enablePin, pigpio.LOW)
 
         self.audioManager = audioManager
         self.audioToken = 'fe7a1846-a0bb-4a44-aa3e-5b080089d37a'
+
+        self.MAX_SPEED = 20  # Gaz limiti %10
+
+    def stopMotors(self):
+        self.leftMotor.power(0)
+        self.rightMotor.power(0)
+
+    def setMotorSpeed(self, motor, speed, trim):
+        speed = int(speed * trim)
+
+        # Speed'i sınırla
+        if speed > self.MAX_SPEED:
+            speed = self.MAX_SPEED
+        elif speed < -self.MAX_SPEED:
+            speed = -self.MAX_SPEED
+
+        motor.power(speed)
 
     def getTargetMotorDCs(self, targetBearing, slow):
         if targetBearing == "0":
             leftDC = 0
             rightDC = 0
+
         elif targetBearing == "n":
-            if not slow:
-                leftDC = 100 * self.straightaway
-                rightDC = 100 * self.straightaway
-            else:
-                leftDC = 100 * self.straightawaySlow
-                rightDC = 100 * self.straightawaySlow
+            leftDC = -100 * (self.straightawaySlow if slow else self.straightaway)
+            rightDC = -100 * (self.straightawaySlow if slow else self.straightaway)
+
+        elif targetBearing == "s":
+            leftDC = 100 * (self.straightawaySlow if slow else self.straightaway)
+            rightDC = 100 * (self.straightawaySlow if slow else self.straightaway)
+
         elif targetBearing == "ne":
             if not slow:
-                leftDC = 100
-                rightDC = 100 * self.halfTurnUndersteer
-            else:
-                leftDC = 100 * self.halfTurnSlowFactor
-                rightDC = 100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
-        elif targetBearing == "e":
-            if not slow:
-                leftDC = 100 * self.tankTurnSpeed
-                rightDC = -100 * self.tankTurnSpeed
-            else:
-                leftDC = 100 * self.tankTurnSpeedSlow
-                rightDC = -100 * self.tankTurnSpeedSlow
-        elif targetBearing == "se":
-            if not slow:
-                leftDC = -100
-                rightDC = -100 * self.halfTurnUndersteer
-            else:
-                leftDC = -100 * self.halfTurnSlowFactor
-                rightDC = -100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
-        elif targetBearing == "s":
-            if not slow:
-                leftDC = -100 * self.straightaway
-                rightDC = -100 * self.straightaway
-            else:
-                leftDC = -100 * self.straightawaySlow
-                rightDC = -100 * self.straightawaySlow
-        elif targetBearing == "sw":
-            if not slow:
-                leftDC = -100 * self.halfTurnUndersteer
-                rightDC = -100  
+                leftDC = -100 * self.halfTurnUndersteer  # sol yavaş
+                rightDC = -100                           # sağ hızlı
             else:
                 leftDC = -100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
                 rightDC = -100 * self.halfTurnSlowFactor
-        elif targetBearing == "w":
-            if not slow:
-                leftDC = -100 * self.tankTurnSpeed
-                rightDC = 100 * self.tankTurnSpeed
-            else:
-                leftDC = -100 * self.tankTurnSpeedSlow
-                rightDC = 100 * self.tankTurnSpeedSlow
+
         elif targetBearing == "nw":
             if not slow:
-                leftDC = 100 * self.halfTurnUndersteer
-                rightDC = 100
+                leftDC = -100                           # sol hızlı
+                rightDC = -100 * self.halfTurnUndersteer  # sağ yavaş
+            else:
+                leftDC = -100 * self.halfTurnSlowFactor
+                rightDC = -100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
+
+        elif targetBearing == "se":
+            if not slow:
+                leftDC = 100 * self.halfTurnUndersteer  # sol yavaş
+                rightDC = 100                           # sağ hızlı
             else:
                 leftDC = 100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
                 rightDC = 100 * self.halfTurnSlowFactor
+
+        elif targetBearing == "sw":
+            if not slow:
+                leftDC = 100                           # sol hızlı
+                rightDC = 100 * self.halfTurnUndersteer  # sağ yavaş
+            else:
+                leftDC = 100 * self.halfTurnSlowFactor
+                rightDC = 100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
+
+        elif targetBearing == "e":
+            # Yerinde SAĞA dönüş (saat yönü)
+            leftDC = -100 * (self.tankTurnSpeedSlow if slow else self.tankTurnSpeed)
+            rightDC = -leftDC
+
+        elif targetBearing == "w":
+            # Yerinde SOLA dönüş (saat yönü tersi)
+            rightDC = -100 * (self.tankTurnSpeedSlow if slow else self.tankTurnSpeed)
+            leftDC = -rightDC
+
         else:
             raise Exception("Bad bearing: " + targetBearing)
 
@@ -122,13 +110,13 @@ class MotorController:
             raise ValueError("Invalid bearing: {}".format(bearing))
 
         leftDC, rightDC = self.getTargetMotorDCs(bearing, slow)
-        leftActive = self.leftMotor.setMotion(leftDC)
-        rightActive = self.rightMotor.setMotion(rightDC)
-        if leftActive or rightActive:
-            self.gpio.write(self.enablePin, pigpio.HIGH)
+
+        if leftDC != 0 or rightDC != 0:
+            self.setMotorSpeed(self.leftMotor, leftDC, self.leftTrim)
+            self.setMotorSpeed(self.rightMotor, rightDC, self.rightTrim)
             self.audioManager.lowerVolume(self.audioToken)
             Events.getInstance().fireMotionOn()
         else:
-            self.gpio.write(self.enablePin, pigpio.LOW)
+            self.stopMotors()
             self.audioManager.restoreVolume(self.audioToken)
             Events.getInstance().fireMotionOff()

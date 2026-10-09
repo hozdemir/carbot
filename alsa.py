@@ -2,8 +2,7 @@ import alsaaudio
 import json
 
 class Alsa:
-    def __init__(self, gpio, config):
-        self.gpio = gpio
+    def __init__(self, config):
         try:
             if len(alsaaudio.mixers()) > 0:
                 self.mixer = alsaaudio.Mixer(alsaaudio.mixers()[0])

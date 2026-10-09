@@ -1,32 +1,30 @@
-import smbus
-DEVICE_BUS = 1
-DEVICE_ADDR = 0x17
+import os
 
 class PowerPlant:
-    def __init__(self, config):
-        self.bus = smbus.SMBus(DEVICE_BUS)
-        powerplantConfig = config["POWERPLANT"]
-        cutoffVoltage = int(powerplantConfig['CutoffVoltage'])
-        self.bus.write_byte_data(DEVICE_ADDR, 17, cutoffVoltage & 0xFF)
-        self.bus.write_byte_data(DEVICE_ADDR, 18, (cutoffVoltage >> 8)& 0xFF)
-        print('Set powerplant cutoff voltage to {} mv'.format(cutoffVoltage))
+    def __init__(self, cache_path="/home/pi/.battery_voltage_cache"):
+        self.cache_path = cache_path
         self.lastIsError = False
-        
 
     def getBatteryInfo(self):
         try:
-            aReceiveBuf = []
-            aReceiveBuf.append(0x00)   # Placeholder
-            for i in range(1,255):
-                aReceiveBuf.append(self.bus.read_byte_data(DEVICE_ADDR, i))
-            percentage = aReceiveBuf[20] << 8 | aReceiveBuf[19]
-            charging = (aReceiveBuf[10] << 8 | aReceiveBuf[9]) > 4000
+            with open(self.cache_path, "r") as f:
+                voltage = float(f.read().strip())  # Örn: 7.53
+
+            # Şarj olma durumu — 7.4V üstü şarj oluyor diyelim
+            charging = False #voltage > 7.4
+
+            # Yüzde hesaplama — lineer (örnek)
+            percent = int((voltage - 6.0) * 100 / (8.4 - 6.0))
+            percent = min(max(percent, 0), 100)
+
             if self.lastIsError:
-                print('Powerplant communication restored')
+                print("⚡️ Pil durumu geri geldi.")
                 self.lastIsError = False
-            return [percentage, charging]
+
+            return [percent, charging]
+
         except Exception as e:
             if not self.lastIsError:
-                print('Error obtaining powerplant info: ' + str(e))
+                print(f"❌ Pil bilgisi alınamadı: {e}")
                 self.lastIsError = True
             return [0, False]
