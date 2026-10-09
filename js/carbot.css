@@ -1,11 +1,11 @@
 #vid {
-    object-fit: contain;
+    max-width: 80%;
+    max-height: 100vh;
     width: auto;
-    height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 50%; 
-    transform: translateX(-50%);
+    height: auto;
+    object-fit: contain;
+    margin: 0 auto;
+    display: block;
     background: black;
 }
 
@@ -72,7 +72,7 @@ div#wifiInfo {
     border: 1px solid rgba(255, 255, 255, 0.3);
     background: white;
     min-width: 200px;
-    
+
     padding: 5px;
     color: white;
     font-family: "Helvetica Neue", Arial, sans-serif;
@@ -99,7 +99,7 @@ div#ttsSection {
     border: 1px solid rgba(255, 255, 255, 0.3);
     background: white;
     min-width: 200px;
-    
+
     padding: 5px;
     color: white;
     font-family: "Helvetica Neue", Arial, sans-serif;

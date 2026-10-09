@@ -35,7 +35,7 @@ function listDevices(devices) {
     }
 
     $("#deviceSelector").change(audioDeviceChange);
-    
+
 }
 
 function audioDeviceChange() {
@@ -47,8 +47,8 @@ function audioDeviceChange() {
 
 let reconnecting = false;
 function connectJanus() {
-    var server = "https://" + window.location.hostname + ":8089/janus";
-    
+    var server = "http://" + window.location.hostname + ":8088/janus";
+
     janusConnection = new Janus({
         server: server,
         success: function () {
@@ -58,7 +58,7 @@ function connectJanus() {
             } else {
                 onJanusConnect();
             }
-            
+
         },
         error: function (error) {
             $("#reconnecting").show();
@@ -166,7 +166,7 @@ function attachVideoroomPlugin() {
             Janus.log("Janus " + (on ? "started" : "stopped") + " receiving our " + medium);
         },
         onremotestream: function (stream) {
-            
+
         },
         onlocalstream: function (stream) {
             mute();
@@ -197,7 +197,7 @@ function videoroom_onMessage(msg, jsep) {
             mypvtid = msg["private_id"];
             Janus.log("Successfully joined room " + msg["room"] + " with ID " + publisherId);
             publishOwnFeed();
-            
+
         } else if(event === "destroyed") {
             // The room has been destroyed
             Janus.warn("The room has been destroyed!");
@@ -252,7 +252,7 @@ function publishOwnFeed() {
             console.error("Error getting user media: " + reason);
         });
     });
-    
+
 }
 
 function unpublishOwnFeed() {
