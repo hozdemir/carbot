@@ -331,6 +331,17 @@ $(document).ready(function () {
         drawFollowTarget(lastFollowStatus);
     });
 
+    const sendLightsColor_throttled = _.throttle(sendLightsColor, 200, {leading: true});
+    const sendLightsBrightness_throttled = _.throttle(sendLightsBrightness, 200, {leading: true});
+
+    $("#lightsColor").on("input", function () {
+        sendLightsColor_throttled(this.value);
+    });
+
+    $("#lightsBrightness").on("input", function () {
+        sendLightsBrightness_throttled(this.value);
+    });
+
     $("div#volumeSlider input").on("input", function () {
         setVolume_throttled(this.value);
     });
@@ -376,6 +387,12 @@ function doHeartbeat() {
             $("div#volumeSlider input").val(data.Volume);
             lights = data.Lights;
             syncLights();
+            if (data.LightsColor) {
+                $("#lightsColor").val(data.LightsColor);
+            }
+            if (data.LightsBrightness !== undefined) {
+                $("#lightsBrightness").val(data.LightsBrightness);
+            }
             doInitialSet = false;
         }
 
@@ -535,4 +552,24 @@ function drawFollowTarget(status) {
         2 * Math.PI
     );
     context.stroke();
+}
+
+// Picking a colour turns the lights on, so the choice is visible straight away.
+function sendLightsColor(color) {
+    lights = true;
+    syncLights();
+    postLights({ color: color, on: true });
+}
+
+function sendLightsBrightness(brightness) {
+    postLights({ brightness: parseInt(brightness) });
+}
+
+function postLights(lightsObj) {
+    $.ajax({
+        url: '/lights',
+        type: "POST",
+        data: JSON.stringify(lightsObj),
+        contentType: "application/json; charset=utf-8"
+    });
 }
