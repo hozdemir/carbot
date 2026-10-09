@@ -26,8 +26,14 @@ class TTSSpeaker:
                     print("Saying '{}'".format(ttsText))
                     self.audioManager.lowerVolume(self.audioToken)
                     fullTTSCommand = self.ttsCommand.format(shlex.quote(ttsText))
-                    process = await asyncio.create_subprocess_shell(fullTTSCommand, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-                    await process.communicate()
+                    process = await asyncio.create_subprocess_shell(
+                        fullTTSCommand,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await process.communicate()
+                    print("TTS stdout:", stdout.decode())
+                    print("TTS stderr:", stderr.decode())
                     self.audioManager.restoreVolume(self.audioToken)
         except asyncio.CancelledError:
             print("TTS stopped")
