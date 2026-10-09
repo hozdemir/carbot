@@ -4,6 +4,7 @@ import asyncio
 import sys
 import psutil
 from events import Events
+from lightscontroller import formatColor
 
 
 class Heartbeat:
@@ -101,6 +102,8 @@ class Heartbeat:
                 "Volume": volume,
                 "CPU": cpuIdle,
                 "Lights": self.lightsController.lightsStatus,
+                "LightsColor": formatColor(self.lightsController.color),
+                "LightsBrightness": self.lightsController.brightness,
                 "BatteryPercent": batteryInfo[0],
                 "BatteryCharging": batteryInfo[1],
             }

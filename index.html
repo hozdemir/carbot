@@ -31,6 +31,10 @@
             <div id="lightsButton" title="Headlights (L)" class="wButton">
                 <i class="material-icons">flash_off</i>
             </div>
+            <div id="lightsColorSection" class="wButton noHover" title="Headlight colour and brightness">
+                <input type="color" id="lightsColor" value="#ffffff" />
+                <input type="range" id="lightsBrightness" min=1 max=31 value=31 />
+            </div>
             <div id="ttsButton" title="Text to Speech (S)" class="wButton">
                 <i class="material-icons">chat_bubble_outline</i>
             </div>
@@ -71,7 +75,7 @@
     Z: look down
     S: Text to speech
     V: Push-to-talk
-    L: Headlights</pre>
+    L: Headlights (colour and brightness next to the lights button)</pre>
     </div>
     <div id="wifiInfo" tabindex="-1">
         <div>
