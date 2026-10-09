@@ -1,0 +1,38 @@
+# Carbot
+
+A Raspberry Pi tank rover controlled from the browser: tank-style driving, a pan/tilt camera, low-latency WebRTC video, two-way audio, lighting, battery monitoring and a standalone colour-tracking autopilot.
+
+Carbot is a fork of [Watney](https://github.com/nikivanov/watney) by Nik Ivanov, an open-source telepresence rover. The web control UI, the Janus/GStreamer video stack, heartbeat watchdog, audio management, off-charger detection, startup sequence and Packer image build all come from Watney. Carbot runs on a different chassis and different hardware, and adds the changes listed below.
+
+## What Carbot changes
+
+- **Fusion HAT hardware layer** — motors and the pan/tilt servo are driven through the SunFounder Fusion HAT instead of `pigpio`; servo limits are angles instead of pulse widths.
+- **Battery reading** — battery level comes from a voltage cache file instead of the UPS board over I2C.
+- **Colour-tracking autopilot** (`main.py`) — runs standalone: detects a target colour with OpenCV (HSV mask) on the Pi camera feed and keeps it centred by driving the pan/tilt servos (PCA9685 via `adafruit_servokit`) through a positional PID with a smoothed output (`PID.py`, tested in `test_pid.py`).
+- **Turkish TTS** — Piper with the `tr_TR-dfki-medium` voice instead of Mimic.
+- **Video pipeline** — `rpicam-vid` (current Raspberry Pi OS) at 1280x720/30fps instead of `raspivid`.
+- **Web UI** — the page is served over plain HTTP and talks to Janus over HTTP; the video plays inline and muted so mobile browsers autoplay it.
+- **No shared TLS keypair** — Watney committed `key.pem`/`cert.pem`; Carbot removes them and the Packer image generates a fresh keypair on each device.
+
+The commit history after `Rename Watney to Carbot` shows each change separately.
+
+## Hardware
+
+Carbot is written for a specific build (tank-drive chassis, Fusion HAT, pan/tilt camera on a PCA9685) and isn't a drop-in install. The `STLs/`, `BOM.md` and wiring images in this repository are Watney's chassis, kept from the original project; see [WATNEY.md](WATNEY.md) for that build.
+
+## Running it
+
+1. Build an image with Packer (`packer/carbot-image.json`, which also generates the TLS keypair), or set up a Raspberry Pi manually with Janus Gateway, GStreamer and Piper installed.
+2. If you set up manually, create a keypair in `/home/pi`: `server.py` refuses to start without `cert.pem`/`key.pem`, and Janus uses them for its secure transport.
+   ```bash
+   openssl req -x509 -newkey rsa:2048 -keyout /home/pi/key.pem -out /home/pi/cert.pem -days 3650 -nodes -subj '/CN=carbot.local'
+   ```
+3. Adjust `rover.conf` for your pins, servo limits and audio/video commands.
+4. Run `python3 server.py` and open `http://<pi-address>:5000` in a browser.
+5. For the autopilot, run `python3 main.py` on its own.
+
+Run the PID tests with `python3 -m unittest test_pid`.
+
+## License
+
+GPL-3.0, the same as Watney. See [LICENSE](LICENSE).
