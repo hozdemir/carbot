@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from lightscontroller import LED_COUNT
 
@@ -7,6 +8,7 @@ class StartupSequenceController:
         audioConfig = config["AUDIO"]
         servoConfig = config["SERVO"]
         self.greeting = audioConfig["Greeting"]
+        self.startupSound = startupSoundPath(audioConfig.get("StartupSound", ""))
         self.neutral = int(servoConfig["Neutral"])
         self.min = int(servoConfig["Min"])
         self.max = int(servoConfig["Max"])
@@ -23,6 +25,10 @@ class StartupSequenceController:
     async def doSequence(self):
         self.lightsController.lightsOff()
         await asyncio.sleep(2)
+
+        # Queued with the greeting, so the chime plays during the animation and the greeting follows it.
+        if self.startupSound:
+            self.tts.playSound(self.startupSound)
         servoInterval = 0.25
         self.servoController.changeServo(self.neutral)
         await asyncio.sleep(servoInterval)
@@ -70,3 +76,13 @@ class StartupSequenceController:
         self.lightsController.lights.set_global_brightness(31)
         self.lightsController.lights.clear_strip()
         
+
+def startupSoundPath(configured):
+    """Resolves StartupSound relative to the repository; returns None when it is unset or the file is missing."""
+    if not configured:
+        return None
+    path = configured if os.path.isabs(configured) else os.path.join(os.path.dirname(os.path.abspath(__file__)), configured)
+    if not os.path.isfile(path):
+        print("Startup sound '{}' not found, booting without it".format(path))
+        return None
+    return path
