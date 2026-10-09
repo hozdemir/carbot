@@ -18,6 +18,7 @@ import asyncio
 from januseventhandler import JanusEventHandler
 from tts import TTSSpeaker
 from startupSequence import StartupSequenceController
+from speaker import enableSpeaker
 
 routes = web.RouteTableDef()
 
@@ -190,6 +191,7 @@ if __name__ == "__main__":
     servoController = ServoController(config, audioManager)
     lightsController = LightsController(config)
 
+    enableSpeaker()
     tts = TTSSpeaker(config, alsa, audioManager)
 
     powerPlant = PowerPlant()
