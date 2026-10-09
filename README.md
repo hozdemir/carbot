@@ -39,6 +39,14 @@ Carbot is written for a specific build (tank-drive chassis, Fusion HAT, pan/tilt
 
 Press **F** or the target button in the control page and Carbot follows a blue object (a ball or a T-shirt works): it turns its body to keep the target centred, tilts the camera to keep it in frame and drives to hold a set distance. Any drive or look key takes control back.
 
+It needs OpenCV and Picamera2 for the system Python the service runs (`/usr/bin/python3`). Install them as Debian packages; pip refuses to install into the system Python on Bookworm:
+
+```bash
+sudo apt install -y --no-install-recommends python3-opencv python3-picamera2
+```
+
+Without them the server logs `Could not start the camera with picamera2, falling back to GStreamerStartCommand: No module named ...`, streams video the old way and the page reports follow mode as unavailable.
+
 How it works:
 
 - With `CameraSource=picamera2` the server opens the camera itself (`camerahub.py`): the full-size stream is hardware-encoded and sent to Janus as before, and a 320x180 copy goes to computer vision. Only one process can open the camera, which is why the video and follow mode share it.
