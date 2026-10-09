@@ -27,6 +27,7 @@ class ServoController:
         # Motion control
         self.degPerSec = float(servoConfig.get("DegPerSec", 90.0))  # deg / sec
         self.direction = 0  # 1: forward, -1: backward, 0: stop
+        self.currentAngle = self.neutral
 
         # Async control
         self.timingLock = asyncio.Condition()
@@ -57,7 +58,15 @@ class ServoController:
         """Immediately move servo to given angle and stop motion."""
         angle = max(self.min, min(self.max, angle))
         self.direction = 0
+        self.currentAngle = angle
         self.servo.angle(angle)
+
+    def nudgeAngle(self, delta: float):
+        """Move the servo by delta degrees, unless the user is moving it with the look keys."""
+        if self.direction != 0 or delta == 0:
+            return
+        self.currentAngle = max(self.min, min(self.max, self.currentAngle + delta))
+        self.servo.angle(self.currentAngle)
 
     # Backward compatibility
     def changeServo(self, value: float):
@@ -81,13 +90,13 @@ class ServoController:
     async def _timingLoop(self):
         print("Servo starting...")
         try:
-            currentAngle = self.neutral
-            self.servo.angle(currentAngle)
+            self.currentAngle = self.neutral
+            self.servo.angle(self.currentAngle)
             lastTime = None
 
             while True:
                 async with self.timingLock:
-                    if not self._shouldMove(currentAngle):
+                    if not self._shouldMove(self.currentAngle):
                         self.audioManager.restoreVolume(self.audioToken)
                         lastTime = None
                         await self.timingLock.wait()
@@ -99,11 +108,11 @@ class ServoController:
                 lastTime = now
 
                 if self.direction == 1:
-                    currentAngle = max(currentAngle - delta, self.min)
+                    self.currentAngle = max(self.currentAngle - delta, self.min)
                 elif self.direction == -1:
-                    currentAngle = min(currentAngle + delta, self.max)
+                    self.currentAngle = min(self.currentAngle + delta, self.max)
 
-                self.servo.angle(currentAngle)
+                self.servo.angle(self.currentAngle)
                 await asyncio.sleep(0.05)
 
         except asyncio.CancelledError:
