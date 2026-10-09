@@ -194,7 +194,7 @@ if __name__ == "__main__":
     enableSpeaker()
     tts = TTSSpeaker(config, alsa, audioManager)
 
-    powerPlant = PowerPlant()
+    powerPlant = PowerPlant(config["POWERPLANT"] if config.has_section("POWERPLANT") else None)
 
     startupController = StartupSequenceController(config, servoController, lightsController, tts)
 
