@@ -102,6 +102,66 @@ class MotorControllerDriveTest(unittest.TestCase):
         self.assertEqual(motors.rightMotor.lastPower, -motors.MAX_SPEED // 2)
 
 
+class MotorControllerBearingTest(unittest.TestCase):
+    """Arrow-key driving. Negative power drives forward on this chassis."""
+
+    def setUp(self):
+        self.motors = MotorController(roverConfig(), FakeAudioManager())
+
+    def powers(self, bearing, slow=False):
+        self.motors.setBearing(bearing, slow)
+        return self.motors.leftMotor.lastPower, self.motors.rightMotor.lastPower
+
+    def test_full_speed_straight_uses_the_whole_motor_limit(self):
+        self.assertEqual(self.powers("n"), (-self.motors.MAX_SPEED, -self.motors.MAX_SPEED))
+        self.assertEqual(self.powers("s"), (self.motors.MAX_SPEED, self.motors.MAX_SPEED))
+
+    def test_forward_left_curves_left_with_the_right_track_faster(self):
+        left, right = self.powers("nw")
+
+        self.assertLess(left, 0)
+        self.assertLess(right, left)
+
+    def test_forward_right_curves_right_with_the_left_track_faster(self):
+        left, right = self.powers("ne")
+
+        self.assertLess(right, 0)
+        self.assertLess(left, right)
+
+    def test_backward_turns_put_the_fast_track_on_the_outside(self):
+        seLeft, seRight = self.powers("se")
+        swLeft, swRight = self.powers("sw")
+
+        self.assertGreater(seLeft, seRight)
+        self.assertGreater(seRight, 0)
+        self.assertGreater(swRight, swLeft)
+        self.assertGreater(swLeft, 0)
+
+    def test_gradual_turns_survive_the_motor_limit(self):
+        """Clipping 100 and 20 at a limit of 20 used to make both tracks equal, so the rover drove straight."""
+        left, right = self.powers("ne")
+
+        self.assertNotEqual(left, right)
+
+    def test_slow_mode_is_slower_than_normal(self):
+        normal, _ = self.powers("n")
+        slow, _ = self.powers("n", slow=True)
+
+        self.assertLess(abs(slow), abs(normal))
+        self.assertGreater(abs(slow), 0)
+
+    def test_spinning_in_place_keeps_its_direction(self):
+        left, right = self.powers("e")
+
+        self.assertLess(left, 0)
+        self.assertGreater(right, 0)
+
+    def test_minimum_power_keeps_slow_tracks_moving(self):
+        _, right = self.powers("ne", slow=True)
+
+        self.assertLessEqual(right, -int(self.motors.MAX_SPEED * self.motors.minPower))
+
+
 class ServoControllerNudgeTest(unittest.TestCase):
     def setUp(self):
         self.loop = asyncio.new_event_loop()

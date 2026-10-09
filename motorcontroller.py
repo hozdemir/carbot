@@ -24,11 +24,14 @@ class MotorController:
         self.halfTurnSlowFactor = float(driverConfig["HalfTurnSlowFactor"])
         self.tankTurnSpeed = float(driverConfig["TankTurnSpeed"])
         self.tankTurnSpeedSlow = float(driverConfig["TankTurnSpeedSlow"])
+        # Minimum power for a moving track with the arrow keys (fraction of MAX_SPEED), so slow speeds do not stall.
+        self.minPower = float(driverConfig.get("MinPower", 0.3))
 
         self.audioManager = audioManager
         self.audioToken = 'fe7a1846-a0bb-4a44-aa3e-5b080089d37a'
 
-        self.MAX_SPEED = 20  # Gaz limiti %10
+        # Motor power limit (percent) that every speed above is a fraction of.
+        self.MAX_SPEED = int(driverConfig.get("MaxPower", 20))
 
     def stopMotors(self):
         self.leftMotor.power(0)
@@ -59,36 +62,40 @@ class MotorController:
             rightDC = 100 * (self.straightawaySlow if slow else self.straightaway)
 
         elif targetBearing == "ne":
+            # Forward and right: the left track runs faster.
             if not slow:
-                leftDC = -100 * self.halfTurnUndersteer  # sol yavaş
-                rightDC = -100                           # sağ hızlı
-            else:
-                leftDC = -100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
-                rightDC = -100 * self.halfTurnSlowFactor
-
-        elif targetBearing == "nw":
-            if not slow:
-                leftDC = -100                           # sol hızlı
-                rightDC = -100 * self.halfTurnUndersteer  # sağ yavaş
+                leftDC = -100
+                rightDC = -100 * self.halfTurnUndersteer
             else:
                 leftDC = -100 * self.halfTurnSlowFactor
                 rightDC = -100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
 
-        elif targetBearing == "se":
+        elif targetBearing == "nw":
+            # Forward and left: the right track runs faster.
             if not slow:
-                leftDC = 100 * self.halfTurnUndersteer  # sol yavaş
-                rightDC = 100                           # sağ hızlı
+                leftDC = -100 * self.halfTurnUndersteer
+                rightDC = -100
             else:
-                leftDC = 100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
-                rightDC = 100 * self.halfTurnSlowFactor
+                leftDC = -100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
+                rightDC = -100 * self.halfTurnSlowFactor
 
-        elif targetBearing == "sw":
+        elif targetBearing == "se":
+            # Backward and right: the left track runs faster.
             if not slow:
-                leftDC = 100                           # sol hızlı
-                rightDC = 100 * self.halfTurnUndersteer  # sağ yavaş
+                leftDC = 100
+                rightDC = 100 * self.halfTurnUndersteer
             else:
                 leftDC = 100 * self.halfTurnSlowFactor
                 rightDC = 100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
+
+        elif targetBearing == "sw":
+            # Backward and left: the right track runs faster.
+            if not slow:
+                leftDC = 100 * self.halfTurnUndersteer
+                rightDC = 100
+            else:
+                leftDC = 100 * self.halfTurnUndersteer * self.halfTurnSlowFactor
+                rightDC = 100 * self.halfTurnSlowFactor
 
         elif targetBearing == "e":
             # Yerinde SAĞA dönüş (saat yönü)
@@ -137,8 +144,10 @@ class MotorController:
         leftDC, rightDC = self.getTargetMotorDCs(bearing, slow)
 
         if leftDC != 0 or rightDC != 0:
-            self.setMotorSpeed(self.leftMotor, leftDC, self.leftTrim)
-            self.setMotorSpeed(self.rightMotor, rightDC, self.rightTrim)
+            # The bearing table asks for -100..100. Scale that into MAX_SPEED rather than clipping at it, so the slow
+            # track of a gradual turn (and slow mode) stays slower than the fast one.
+            self.setMotorSpeed(self.leftMotor, self._wheelPower(leftDC / 100, self.minPower), self.leftTrim)
+            self.setMotorSpeed(self.rightMotor, self._wheelPower(rightDC / 100, self.minPower), self.rightTrim)
             self.audioManager.lowerVolume(self.audioToken)
             Events.getInstance().fireMotionOn()
         else:
