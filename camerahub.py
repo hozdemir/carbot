@@ -60,7 +60,11 @@ class CameraHub:
         """Returns the latest lores frame as a BGR image. Blocks until a frame is ready, so call it off the event
         loop."""
         yuv = self.picam2.capture_array("lores")
-        return cv2.cvtColor(yuv, cv2.COLOR_YUV420p2BGR)
+        # With these buffers COLOR_YUV420p2BGR yields red-green-blue order (picamera2's own Qt preview shows its result
+        # as RGB888), which made orange wood look blue. The *2RGB conversion gives the blue-green-red order OpenCV uses.
+        bgr = cv2.cvtColor(yuv, cv2.COLOR_YUV420p2RGB)
+        # Drop any row padding (stride) beyond the configured width.
+        return bgr[:, :self.visionWidth]
 
     def stop(self):
         if self.picam2 is not None:
