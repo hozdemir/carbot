@@ -6,6 +6,7 @@ from motorcontroller import MotorController
 from servocontroller import ServoController
 from lightscontroller import LightsController
 from heartbeat import Heartbeat
+from speaker import enableSpeaker
 from subprocess import call
 import os
 import pigpio
@@ -220,6 +221,7 @@ if __name__ == "__main__":
     servoController = ServoController(config, audioManager)
     lightsController = LightsController(config)
 
+    enableSpeaker()
     tts = TTSSpeaker(config, alsa, audioManager)
 
     powerPlant = PowerPlant()
