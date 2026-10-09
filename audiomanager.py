@@ -1,4 +1,5 @@
-import gi 
+import gi
+
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GObject
 import threading
@@ -15,6 +16,7 @@ rtpbin. ! rtpopusdepay ! queue ! opusdec ! audioresample ! audio/x-raw,format=S1
 alsasrc device=plughw:0,0 buffer-time=20000 ! audio/x-raw,format=S16LE,layout=interleaved,rate=16000,channels=1 ! webrtcdsp probe=echoprobe echo-suppression-level=high ! \
 volume name=vol1 volume=10 ! volume name=vol2 volume=3 ! queue ! opusenc ! rtpopuspay ! udpsink host=127.0.0.1 port=8005
 '''
+
 
 class AudioManager:
     def __init__(self, config):
@@ -35,7 +37,7 @@ class AudioManager:
         with self.sessionLock:
             if self.sessionCounter == 0:
                 self.shuttingDown = False
-                self.tokenSet.clear()        
+                self.tokenSet.clear()
                 self.audioManagerThread = threading.Thread(name='audioManagerLoop', target=self.__runLoop)
                 self.audioManagerThread.setDaemon(True)
                 self.audioManagerThread.start()
@@ -62,9 +64,9 @@ class AudioManager:
             print('Audio pipeline started')
             GObject.threads_init()
             self.pipelineReady = True
-            self.mainloop = GObject.MainLoop().new(None, False) 
+            self.mainloop = GObject.MainLoop().new(None, False)
             self.mainloop.run()
-        
+
         self.pipelineReady = False
 
     def on_message(self, bus, message):
@@ -86,18 +88,17 @@ class AudioManager:
     def lowerVolume(self, token):
         if not self.pipelineReady:
             return
-        
+
         with self.volumeLock:
             if len(self.tokenSet) == 0:
                 self.pipeline.get_by_name('vol1').set_property('volume', 1)
                 self.pipeline.get_by_name('vol2').set_property('volume', 1)
             self.tokenSet.add(token)
 
-
     def restoreVolume(self, token):
         if not self.pipelineReady:
             return
-        
+
         with self.volumeLock:
             if token in self.tokenSet:
                 self.tokenSet.remove(token)
@@ -106,10 +107,9 @@ class AudioManager:
                     self.unmuteId = unmuteId
                     self.delayedExecutor.submit(self.__restoreVolume, unmuteId)
 
-
     def __restoreVolume(self, unmuteId):
         time.sleep(self.pause)
         with self.volumeLock:
             if len(self.tokenSet) == 0 and self.unmuteId == unmuteId:
                 self.pipeline.get_by_name('vol1').set_property('volume', 10)
-                self.pipeline.get_by_name('vol2').set_property('volume', 3) 
+                self.pipeline.get_by_name('vol2').set_property('volume', 3)

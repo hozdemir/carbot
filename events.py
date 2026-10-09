@@ -60,7 +60,3 @@ class Events:
                 eventFn()
             except Exception as e:
                 print("Exception in motionOff: {}".format(e))
-
-
-    
-

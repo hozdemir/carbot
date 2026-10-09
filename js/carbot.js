@@ -14,7 +14,7 @@ var lastSlow = false;
 function sendKeys() {
     var bearing = "0";
     var look = 0;
-    
+
     if (up) {
         if (left) {
             bearing = "nw";
@@ -120,14 +120,14 @@ $(document).ready(function () {
                 else {
                     currentVolume = currentVolume - 5;
                 }
-                
+
                 if (currentVolume > 100) {
                     currentVolume = 100;
                 }
                 else if (currentVolume < 0) {
                     currentVolume = 0;
                 }
-                
+
                 $("div#volumeSlider input").val(currentVolume).trigger("input");
                 event.preventDefault();
                 return;
