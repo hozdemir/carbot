@@ -7,7 +7,7 @@
     "file_checksum_type": "sha256",
     "file_target_extension": "zip",
     "image_build_method": "resize",
-    "image_path": "watney.img",
+    "image_path": "carbot.img",
     "image_size": "5G",
     "image_type": "dos",
     "image_partitions": [
@@ -50,8 +50,8 @@
     },
     {
       "type": "file",
-      "source": "watney.service",
-      "destination": "/etc/systemd/system/watney.service"
+      "source": "carbot.service",
+      "destination": "/etc/systemd/system/carbot.service"
     },
     {
       "type": "shell",
@@ -72,8 +72,8 @@
         "echo 'gpio=24=op,dl' >> /boot/config.txt",
         "echo 'gpio=17=op,dl' >> /boot/config.txt",
         "echo 'gpio=27=op,dl' >> /boot/config.txt",
-        "raspi-config nonint do_hostname watney",
-        "echo \"watney5\\nwatney5\" | passwd pi",
+        "raspi-config nonint do_hostname carbot",
+        "echo \"carbot5\\ncarbot5\" | passwd pi",
         "touch /boot/ssh",
         "chown root /etc/asound.conf",
         "chmod u=rw,g=r,o=r /etc/asound.conf",
@@ -84,18 +84,18 @@
     {
       "type": "shell",
       "inline": [
-        "# Watney",
+        "# Carbot",
         "apt-get -y install git python3-pip pigpio python3-pigpio python3-rpi.gpio python-smbus python3-numpy",
         "systemctl enable pigpiod",
         "sed -i 's:^ExecStart=/usr/bin/pigpiod -l:ExecStart=/usr/bin/pigpiod -l -t 0:g' /lib/systemd/system/pigpiod.service",
         "pip3 install aiohttp apa102-pi psutil pyalsaaudio smbus",
-        "# Clone and set up Watney FIXME branch",
+        "# Clone and set up Carbot FIXME branch",
         "cd /home/pi",
-        "git clone https://github.com/nikivanov/watney.git",
-        "cp /home/pi/watney/key.pem /home/pi",
-        "cp /home/pi/watney/cert.pem /home/pi",
-        "chown -R pi /home/pi/watney",
-        "systemctl enable watney"
+        "git clone https://github.com/nikivanov/carbot.git",
+        "cp /home/pi/carbot/key.pem /home/pi",
+        "cp /home/pi/carbot/cert.pem /home/pi",
+        "chown -R pi /home/pi/carbot",
+        "systemctl enable carbot"
       ]
     },
     {
@@ -153,7 +153,7 @@
         "rm v2.3.0.tar.gz",
         "git clone https://github.com/meetecho/janus-gateway.git",
         "cd janus-gateway",
-        "# Janus recommends building from master, but this will lock the Watney release to a specific commit",
+        "# Janus recommends building from master, but this will lock the Carbot release to a specific commit",
         "git checkout 5ec8568709c483ae89b1aa77e127d14c3b59428c",
         "sh autogen.sh",
         "./configure --prefix=/opt/janus --disable-aes-gcm",

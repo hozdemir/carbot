@@ -57,7 +57,7 @@ general: {
 }
 
 room-1337: {
-        description = "Watney room"
+        description = "Carbot room"
         #secret = "adminpwd"
         publishers = 1
         bitrate = 128000

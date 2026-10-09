@@ -174,10 +174,10 @@ file-ondemand-sample: {
 # example of how to create a simple H.264 mountpoint: you can feed it via
 # an x264enc+rtph264pay pipeline in gstreamer, an ffmpeg script or other.
 #
-watney: {
+carbot: {
 	type = "rtp"
 	id = 10
-	description = "Watney HD stream"
+	description = "Carbot HD stream"
 	audio = true
 	audioport = 8005
     	audiopt = 111

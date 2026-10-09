@@ -106,7 +106,7 @@ function streaming_onRemoteStreamStart(stream) {
 }
 
 function streaming_onPluginAttached() {
-    // Watney HD stream is id 10
+    // Carbot HD stream is id 10
     var body = { "request": "watch", id: 10 };
     streamingPluginHandle.send({ "message": body });
 }
@@ -181,7 +181,7 @@ function attachVideoroomPlugin() {
 }
 
 function videoroom_onPluginAttached() {
-    var register = { "request": "join", "room": 1337, "ptype": "publisher", "display": "watney" };
+    var register = { "request": "join", "room": 1337, "ptype": "publisher", "display": "carbot" };
 	videoroomPluginHandle.send({"message": register});
 }
 
