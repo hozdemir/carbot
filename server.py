@@ -6,6 +6,7 @@ from motorcontroller import MotorController
 from servocontroller import ServoController
 from lightscontroller import LightsController
 from heartbeat import Heartbeat
+from speaker import enableSpeaker
 from subprocess import call
 import os
 import pigpio
@@ -18,7 +19,6 @@ import asyncio
 from januseventhandler import JanusEventHandler
 from tts import TTSSpeaker
 from startupSequence import StartupSequenceController
-from speaker import enableSpeaker
 
 routes = web.RouteTableDef()
 
