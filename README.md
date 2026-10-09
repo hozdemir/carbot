@@ -1,6 +1,6 @@
 # Carbot
 
-A Raspberry Pi tank rover controlled from the browser: tank-style driving, a pan/tilt camera, low-latency WebRTC video, two-way audio, lighting, battery monitoring and a standalone colour-tracking autopilot.
+A Raspberry Pi tank rover controlled from the browser: tank-style driving, a pan/tilt camera, low-latency WebRTC video, two-way audio, lighting, battery monitoring and a follow mode that drives after a coloured target.
 
 Carbot is a fork of [Watney](https://github.com/nikivanov/watney) by Nik Ivanov, an open-source telepresence rover. The web control UI, the Janus/GStreamer video stack, heartbeat watchdog, audio management, off-charger detection, startup sequence and Packer image build all come from Watney. Carbot runs on a different chassis and different hardware, and adds the changes listed below.
 
@@ -8,7 +8,8 @@ Carbot is a fork of [Watney](https://github.com/nikivanov/watney) by Nik Ivanov,
 
 - **Fusion HAT hardware layer** — motors and the pan/tilt servo are driven through the SunFounder Fusion HAT instead of `pigpio`; servo limits are angles instead of pulse widths.
 - **Battery reading** — battery level comes from a voltage cache file instead of the UPS board over I2C.
-- **Colour-tracking autopilot** (`main.py`) — runs standalone: detects a target colour with OpenCV (HSV mask) on the Pi camera feed and keeps it centred by driving the pan/tilt servos (PCA9685 via `adafruit_servokit`) through a positional PID with a smoothed output (`PID.py`, tested in `test_pid.py`).
+- **Follow mode** — see below.
+- **Colour-tracking autopilot** (`main.py`) — the older standalone script: detects a target colour with OpenCV (HSV mask) on the Pi camera feed and keeps it centred by driving the pan/tilt servos (PCA9685 via `adafruit_servokit`) through a positional PID with a smoothed output (`PID.py`). It opens the camera itself, so it only runs with `CameraSource=external` or with the server stopped.
 - **Turkish TTS** — Piper with the `tr_TR-dfki-medium` voice instead of Mimic.
 - **Video pipeline** — `rpicam-vid` (current Raspberry Pi OS) at 1280x720/30fps instead of `raspivid`.
 - **Web UI** — the page is served over plain HTTP and talks to Janus over HTTP; the video plays inline and muted so mobile browsers autoplay it.
@@ -29,9 +30,37 @@ Carbot is written for a specific build (tank-drive chassis, Fusion HAT, pan/tilt
    ```
 3. Adjust `rover.conf` for your pins, servo limits and audio/video commands.
 4. Run `python3 server.py` and open `http://<pi-address>:5000` in a browser.
-5. For the autopilot, run `python3 main.py` on its own.
+5. For the standalone autopilot, stop the server (or set `CameraSource=external`) and run `python3 main.py`.
 
-Run the PID tests with `python3 -m unittest test_pid`.
+## Follow mode
+
+Press **F** or the target button in the control page and Carbot follows a blue object (a ball or a T-shirt works): it turns its body to keep the target centred, tilts the camera to keep it in frame and drives to hold a set distance. Any drive or look key takes control back.
+
+How it works:
+
+- With `CameraSource=picamera2` the server opens the camera itself (`camerahub.py`): the full-size stream is hardware-encoded and sent to Janus as before, and a 320x180 copy goes to computer vision. Only one process can open the camera, which is why the video and follow mode share it.
+- `colordetector.py` finds the largest blob in the configured HSV range; `followcontroller.py` turns its position and size into turn, drive and tilt commands; `followmode.py` runs that loop at 15 Hz.
+- Safety: follow mode stops the rover when the browser stops sending heartbeats, when the target has been missing for `LostTimeout`, on any error in the loop, and optionally below `MinBatteryPercent`. Motor power stays under the existing `MAX_SPEED` limit. **Carbot has no distance sensor, so it does not see obstacles between it and the target** — try it in open space first.
+
+Tuning (all in `[FOLLOW]` in `rover.conf`, no code changes needed):
+
+1. Lift the rover so its wheels are off the ground, turn follow mode on, hold the target where you want the rover to stop and read the size shown next to "Following: tracking" at the top of the page. Set `TargetSize` to that value.
+2. If the camera tilts away from the target, set `TiltDirection=-1`. `TiltSpeed=0` keeps the tilt still.
+3. If the rover hunts left and right, lower `TurnKp` or raise `CenterDeadband`; if it reacts slowly, raise `TurnKp`.
+4. If the motors stall on small corrections, raise `MinPower`; if it creeps too fast, lower `MaxForward`.
+5. For another colour, change the HSV range (OpenCV hue runs 0-179).
+
+If picamera2 fails to start, the server logs the error and falls back to `GStreamerStartCommand` (video only).
+
+## Tests
+
+Hardware is replaced by fakes, so the tests run on any machine:
+
+```bash
+python3 -m unittest discover -s tests -t .
+```
+
+The colour detector tests need `numpy` and `opencv-python`; they are skipped without them.
 
 ## License
 
