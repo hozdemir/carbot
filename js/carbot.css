@@ -158,3 +158,21 @@ div#reconnecting {
     color: white;
     line-height: 100vh;
 }
+div#lightsColorSection {
+    padding: 0 6px;
+}
+
+div#lightsColorSection input[type="color"] {
+    width: 28px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: none;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+div#lightsColorSection input[type="range"] {
+    width: 80px;
+    vertical-align: middle;
+}

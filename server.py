@@ -102,6 +102,16 @@ async def onHeartbeat(request):
 @routes.post("/lights")
 async def onLights(request):
     lightsObj = await request.json()
+    try:
+        if 'color' in lightsObj:
+            lightsController.setColor(lightsObj['color'])
+        if 'brightness' in lightsObj:
+            lightsController.setBrightness(lightsObj['brightness'])
+    except ValueError as e:
+        return web.Response(status=400, text=str(e))
+
+    if 'on' not in lightsObj:
+        return web.Response(text="OK")
     on = bool(lightsObj['on'])
     if on:
         lightsController.lightsOn()

@@ -12,7 +12,9 @@ def _stubLightHardware():
     """startupSequence imports the LED driver, which needs the Pi; tests only use its path helper."""
     for name in ("pigpio", "apa102_pi", "apa102_pi.driver"):
         sys.modules.setdefault(name, types.ModuleType(name))
-    sys.modules["apa102_pi.driver"].apa102 = object
+    # Leave a driver another test installed in place.
+    if not hasattr(sys.modules["apa102_pi.driver"], "apa102"):
+        sys.modules["apa102_pi.driver"].apa102 = types.SimpleNamespace(APA102=object)
 
 
 _stubLightHardware()
