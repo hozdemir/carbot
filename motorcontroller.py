@@ -30,7 +30,8 @@ class MotorController:
         self.audioManager = audioManager
         self.audioToken = 'fe7a1846-a0bb-4a44-aa3e-5b080089d37a'
 
-        self.MAX_SPEED = 20  # Gaz limiti %20
+        # Motor power limit (percent) that every speed above is a fraction of.
+        self.MAX_SPEED = int(driverConfig.get("MaxPower", 20))
 
     def stopMotors(self):
         self.leftMotor.power(0)
