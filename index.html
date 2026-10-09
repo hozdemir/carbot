@@ -22,6 +22,8 @@
 <body style="margin: 0; background-color: black">
     <div id="joystickContainer"></div>
     <video id="vid" autoplay playsinline muted width="640" height="480"></video>
+    <canvas id="followOverlay"></canvas>
+    <div id="followStatus" style="display: none;"></div>
     <button id="playButton" style="display: none;"><i class="material-icons">play_arrow</i></button>
     <div id="buttonPanel">
         <div>
@@ -30,6 +32,9 @@
             </div>
             <div id="lightsButton" title="Headlights (L)" class="wButton">
                 <i class="material-icons">flash_off</i>
+            </div>
+            <div id="followButton" title="Follow mode (F)" class="wButton">
+                <i class="material-icons">track_changes</i>
             </div>
             <div id="ttsButton" title="Text to Speech (S)" class="wButton">
                 <i class="material-icons">chat_bubble_outline</i>
@@ -71,7 +76,8 @@
     Z: look down
     S: Text to speech
     V: Push-to-talk
-    L: Headlights</pre>
+    L: Headlights
+    F: Follow mode (any drive or look key takes back control)</pre>
     </div>
     <div id="wifiInfo" tabindex="-1">
         <div>

@@ -18,6 +18,7 @@ import asyncio
 from januseventhandler import JanusEventHandler
 from tts import TTSSpeaker
 from startupSequence import StartupSequenceController
+from followmode import FollowMode
 
 routes = web.RouteTableDef()
 
@@ -33,6 +34,8 @@ audioManager = None
 audioManagerThread = None
 janusEventHandler = None
 offCharger = None
+cameraHub = None
+followMode = None
 
 
 @routes.get("/")
@@ -46,6 +49,12 @@ async def setCommand(request):
     newBearing = commandObj['bearing']
     newLook = commandObj['look']
     newSlow = commandObj['slow']
+
+    if followMode is not None and followMode.isEnabled():
+        # Key releases send an all-stop command; only real input takes the controls back from follow mode.
+        if newBearing == "0" and newLook == 0:
+            return web.Response(text="OK")
+        followMode.disable("manual control")
 
     if newBearing in MotorController.validBearings:
         motorController.setBearing(newBearing, newSlow)
@@ -96,6 +105,27 @@ async def setVolume(request):
 async def onHeartbeat(request):
     stats = heartbeat.onHeartbeatReceived()
     return web.json_response(stats)
+
+
+@routes.get("/follow")
+async def getFollowStatus(request):
+    if followMode is None:
+        return web.json_response({"available": False})
+    return web.json_response(dict(followMode.status(), available=True))
+
+
+@routes.post("/follow")
+async def setFollow(request):
+    if followMode is None:
+        return web.json_response(
+            {"available": False, "error": "Follow mode needs CameraSource=picamera2 in rover.conf"}, status=409)
+
+    followObj = await request.json()
+    if bool(followObj['enabled']):
+        followMode.enable()
+    else:
+        followMode.disable()
+    return web.json_response(dict(followMode.status(), available=True))
 
 
 @routes.post("/lights")
@@ -201,7 +231,32 @@ if __name__ == "__main__":
     offCharger = OffCharger(config, tts, motorController)
 
     janus = ExternalProcess(videoConfig["JanusStartCommand"], False, False, "janus.log")
-    videoStream = ExternalProcess(videoConfig["GStreamerStartCommand"], False, False, "video.log")
+
+    # picamera2: the server owns the camera, streams it and can run follow mode.
+    # external: the GStreamerStartCommand script owns the camera (video only, no follow mode).
+    videoStream = None
+    if videoConfig.get("CameraSource", "picamera2") == "picamera2":
+        try:
+            from camerahub import CameraHub
+            from colordetector import ColorDetector
+
+            cameraHub = CameraHub(videoConfig)
+            cameraHub.start()
+            followConfig = config["FOLLOW"] if config.has_section("FOLLOW") else {}
+            followMode = FollowMode(followConfig, cameraHub, ColorDetector(followConfig), motorController,
+                                    servoController, heartbeat, powerPlant)
+        except Exception as e:
+            print("Could not start the camera with picamera2, falling back to GStreamerStartCommand: {}".format(e))
+            if cameraHub is not None:
+                try:
+                    cameraHub.stop()
+                except Exception as stopError:
+                    print("Could not release the camera: {}".format(stopError))
+            cameraHub = None
+            followMode = None
+
+    if cameraHub is None:
+        videoStream = ExternalProcess(videoConfig["GStreamerStartCommand"], False, False, "video.log")
 
     janusEventHandler = JanusEventHandler()
 
@@ -219,10 +274,15 @@ if __name__ == "__main__":
     except:
         pass
     finally:
+        if followMode is not None:
+            followMode.disable("shutting down")
         servoController.stop()
         lightsController.stop()
         #gpio.stop()
         janus.endProcess()
-        videoStream.endProcess()
+        if cameraHub is not None:
+            cameraHub.stop()
+        if videoStream is not None:
+            videoStream.endProcess()
         for runner in runners:
             loop.run_until_complete(runner.cleanup())
