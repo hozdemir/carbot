@@ -204,3 +204,7 @@ div#lightsColorSection input[type="range"] {
     width: 80px;
     vertical-align: middle;
 }
+
+#ttsLanguage {
+    margin: 0 5px;
+}

@@ -90,8 +90,13 @@ async def restart(request):
 async def sendTTS(request):
     ttsObj = await request.json()
     ttsString = ttsObj['str']
-    tts.sayText(ttsString)
+    tts.sayText(ttsString, ttsObj.get('lang'))
     return web.Response(text="OK")
+
+
+@routes.get("/voices")
+async def getVoices(request):
+    return web.json_response({"languages": tts.voices.languages(), "default": tts.voices.defaultLanguage})
 
 
 @routes.post("/setVolume")

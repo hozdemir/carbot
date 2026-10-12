@@ -15,6 +15,7 @@ class StartupSequenceController:
         audioConfig = config["AUDIO"]
         servoConfig = config["SERVO"]
         self.greeting = audioConfig["Greeting"]
+        self.greetingLanguage = audioConfig.get("GreetingLanguage", "")
         self.startupSound = startupSoundPath(audioConfig.get("StartupSound", ""))
         self.neutral = int(servoConfig["Neutral"])
         self.min = int(servoConfig["Min"])
@@ -62,7 +63,7 @@ class StartupSequenceController:
         self.servoController.changeServo(self.neutral)
 
         if self.greeting:
-            self.tts.sayText(self.greeting)
+            self.tts.sayText(self.greeting, self.greetingLanguage)
 
         await lightShow
         self.servoController.stopServo()
