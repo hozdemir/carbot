@@ -358,6 +358,13 @@ $(document).ready(function () {
         $("#vid")[0].play();
     });
 
+    loadVoices();
+
+    // Give the keyboard back to driving once a language is picked; arrow keys would otherwise change the selection.
+    $("#ttsLanguage").change(function () {
+        this.blur();
+    });
+
     doHeartbeat();
 
     pollFollow();
@@ -405,10 +412,11 @@ function doHeartbeat() {
 }
 
 function sendTTS(str) {
+    var lang = $("#ttsLanguage").val() || undefined;
     $.ajax({
         url: '/sendTTS',
         type: "POST",
-        data: JSON.stringify({ str }),
+        data: JSON.stringify({ str: str, lang: lang }),
         contentType: "application/json; charset=utf-8",
         dataType: "json"
     });
@@ -571,5 +579,21 @@ function postLights(lightsObj) {
         type: "POST",
         data: JSON.stringify(lightsObj),
         contentType: "application/json; charset=utf-8"
+    });
+}
+
+// The language picker only shows when the rover has more than one voice installed.
+function loadVoices() {
+    $.ajax({
+        url: '/voices',
+        type: "GET",
+        dataType: "json"
+    }).done(function (voices) {
+        var select = $("#ttsLanguage").empty();
+        voices.languages.forEach(function (language) {
+            select.append($("<option>").val(language).text(language.toUpperCase()));
+        });
+        select.val(voices.default);
+        $("#ttsLanguageSection").toggle(voices.languages.length > 1);
     });
 }
